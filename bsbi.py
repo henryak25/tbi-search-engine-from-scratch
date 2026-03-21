@@ -7,7 +7,7 @@ import math
 
 from index import InvertedIndexReader, InvertedIndexWriter
 from util import IdMap, sorted_merge_posts_and_tfs
-from compression import StandardPostings, VBEPostings
+from compression import StandardPostings, VBEPostings, EliasGammaPostings
 from tqdm import tqdm
 
 class BSBIIndex:
@@ -254,6 +254,6 @@ class BSBIIndex:
 if __name__ == "__main__":
 
     BSBI_instance = BSBIIndex(data_dir = 'collection', \
-                              postings_encoding = VBEPostings, \
+                              postings_encoding = EliasGammaPostings, \
                               output_dir = 'index')
     BSBI_instance.index() # memulai indexing!

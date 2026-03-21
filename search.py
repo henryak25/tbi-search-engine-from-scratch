@@ -1,10 +1,10 @@
 from bsbi import BSBIIndex
-from compression import VBEPostings
+from compression import VBEPostings, EliasGammaPostings 
 
 # sebelumnya sudah dilakukan indexing
 # BSBIIndex hanya sebagai abstraksi untuk index tersebut
 BSBI_instance = BSBIIndex(data_dir = 'collection', \
-                          postings_encoding = VBEPostings, \
+                          postings_encoding = EliasGammaPostings, \
                           output_dir = 'index')
 
 queries = ["alkylated with radioactive iodoacetate", \

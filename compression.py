@@ -257,3 +257,130 @@ if __name__ == '__main__':
         assert decoded_posting_list == postings_list, "hasil decoding tidak sama dengan postings original"
         assert decoded_tf_list == tf_list, "hasil decoding tidak sama dengan postings original"
         print()
+
+class EliasGammaPostings:
+    """
+    Implementasi Elias-Gamma Encoding untuk bit-level compression.
+    """
+
+    @staticmethod
+    def eg_encode_number(n):
+        """
+        Encode satu angka integer positif menggunakan algoritma Elias-Gamma.
+        """
+        if n <= 0:
+            raise ValueError("Elias-Gamma hanya menerima angka >= 1")
+            
+        # Langkah pertama yaitu ubah angka ke biner, buang prefix '0b' bawaan python
+        b = bin(n)[2:] 
+        
+        # Selanjutnya kita hitung panjang N, yaitu panjang biner dikurangi 1
+        N = len(b) - 1
+        
+        # bagian Unary: N buah '0' diikuti dengan '1'
+        unary = '0' * N + '1'
+        
+        # Bagian Biner: representasi biner asli tanpa bit '1' pertama
+        binary = b[1:]
+        
+        return unary + binary
+
+    @staticmethod
+    def eg_encode_list(list_of_numbers):
+        """
+        Encode list of numbers menjadi bytestream dengan Elias-Gamma.
+        """
+        # Gabungkan semua representasi bit menjadi satu string panjang
+        bit_string = "".join([EliasGammaPostings.eg_encode_number(n) for n in list_of_numbers])
+        
+        # Tambahkan padding '0' di belakang agar panjang string kelipatan 8
+        padding_length = (8 - len(bit_string) % 8) % 8
+        bit_string += '0' * padding_length
+        
+        # Potong per 8 bit, ubah jadi integer, lalu masukkan ke bytearray
+        b_arr = bytearray()
+        for i in range(0, len(bit_string), 8):
+            byte_val = int(bit_string[i:i+8], 2)
+            b_arr.append(byte_val)
+            
+        return bytes(b_arr)
+
+    @staticmethod
+    def eg_decode_stream(encoded_bytestream):
+        """
+        Decode bytestream kembali menjadi list of numbers.
+        """
+        # Ubah bytestream kembali menjadi string bit yang utuh
+        bit_string = "".join(f"{byte:08b}" for byte in encoded_bytestream)
+        
+        numbers = []
+        i = 0
+        while i < len(bit_string):
+            # 1. Baca bagian unary (hitung jumlah '0' sampai ketemu '1')
+            N = 0
+            while i < len(bit_string) and bit_string[i] == '0':
+                N += 1
+                i += 1
+                
+            # Jika kita sudah mencapai akhir string (hanya tersisa padding '0')
+            if i == len(bit_string):
+                break
+                
+            # Lewati bit '1' penanda batas unary
+            i += 1
+            
+            # 2. Hitung nilai asli
+            if N == 0:
+                numbers.append(1)
+            else:
+                # Ambil sisa bit biner sebanyak N
+                if i + N > len(bit_string):
+                    break # Antisipasi sisa padding di akhir
+                binary_part = bit_string[i : i+N]
+                i += N
+                
+                # Kalkulasi nilai: 2^N + integer dari binary_part
+                val = (1 << N) + int(binary_part, 2)
+                numbers.append(val)
+                
+        return numbers
+
+    @staticmethod
+    def encode(postings_list):
+        """
+        Ubah ke gap-based list terlebih dahulu sebelum di-encode.
+        """
+        # Tambahkan 1 ke posting pertama untuk memastikan semua angka >= 1
+        gap_postings_list = [postings_list[0] + 1]
+        for i in range(1, len(postings_list)):
+            gap_postings_list.append(postings_list[i] - postings_list[i-1])
+            
+        return EliasGammaPostings.eg_encode_list(gap_postings_list)
+
+    @staticmethod
+    def encode_tf(tf_list):
+        """
+        TF tidak perlu diubah ke gap-based. Langsung encode.
+        """
+        return EliasGammaPostings.eg_encode_list(tf_list)
+
+    @staticmethod
+    def decode(encoded_postings_list):
+        """
+        Kembalikan dari gap-based list ke urutan docID asli setelah di-decode.
+        """
+        decoded_gaps = EliasGammaPostings.eg_decode_stream(encoded_postings_list)
+        # Kurang 1 dari gap pertama untuk mendapatkan docID pertama yang asli
+        total = decoded_gaps[0] - 1
+        ori_postings_list = [total]
+        for i in range(1, len(decoded_gaps)):
+            total += decoded_gaps[i]
+            ori_postings_list.append(total)
+        return ori_postings_list
+
+    @staticmethod
+    def decode_tf(encoded_tf_list):
+        """
+        TF langsung dikembalikan apa adanya.
+        """
+        return EliasGammaPostings.eg_decode_stream(encoded_tf_list)
