@@ -237,27 +237,6 @@ class VBEPostings:
         """
         return VBEPostings.vb_decode(encoded_tf_list)
 
-if __name__ == '__main__':
-    
-    postings_list = [34, 67, 89, 454, 2345738]
-    tf_list = [12, 10, 3, 4, 1]
-    for Postings in [StandardPostings, VBEPostings]:
-        print(Postings.__name__)
-        encoded_postings_list = Postings.encode(postings_list)
-        encoded_tf_list = Postings.encode_tf(tf_list)
-        print("byte hasil encode postings: ", encoded_postings_list)
-        print("ukuran encoded postings   : ", len(encoded_postings_list), "bytes")
-        print("byte hasil encode TF list : ", encoded_tf_list)
-        print("ukuran encoded postings   : ", len(encoded_tf_list), "bytes")
-        
-        decoded_posting_list = Postings.decode(encoded_postings_list)
-        decoded_tf_list = Postings.decode_tf(encoded_tf_list)
-        print("hasil decoding (postings): ", decoded_posting_list)
-        print("hasil decoding (TF list) : ", decoded_tf_list)
-        assert decoded_posting_list == postings_list, "hasil decoding tidak sama dengan postings original"
-        assert decoded_tf_list == tf_list, "hasil decoding tidak sama dengan postings original"
-        print()
-
 class EliasGammaPostings:
     """
     Implementasi Elias-Gamma Encoding untuk bit-level compression.
@@ -384,3 +363,29 @@ class EliasGammaPostings:
         TF langsung dikembalikan apa adanya.
         """
         return EliasGammaPostings.eg_decode_stream(encoded_tf_list)
+    
+
+if __name__ == '__main__':
+    postings_list = [34, 67, 89, 454, 2345738]
+    tf_list = [12, 10, 3, 4, 1]
+    
+    for Postings in [StandardPostings, VBEPostings, EliasGammaPostings]:
+        print(f"=== {Postings.__name__} ===")
+        
+        encoded_postings_list = Postings.encode(postings_list)
+        encoded_tf_list = Postings.encode_tf(tf_list)
+        
+        print("byte hasil encode postings: ", encoded_postings_list)
+        print("ukuran encoded postings   : ", len(encoded_postings_list), "bytes")
+        print("byte hasil encode TF list : ", encoded_tf_list)
+        print("ukuran encoded TF         : ", len(encoded_tf_list), "bytes")
+        
+        decoded_posting_list = Postings.decode(encoded_postings_list)
+        decoded_tf_list = Postings.decode_tf(encoded_tf_list)
+        
+        print("hasil decoding (postings): ", decoded_posting_list)
+        print("hasil decoding (TF list) : ", decoded_tf_list)
+        
+        assert decoded_posting_list == postings_list, "hasil decoding tidak sama dengan postings original"
+        assert decoded_tf_list == tf_list, "hasil decoding tidak sama dengan TF original"
+        print("\n" + "-"*50 + "\n")

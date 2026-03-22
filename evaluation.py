@@ -73,7 +73,7 @@ def eval(qrels, query_file = "queries.txt", k = 1000):
       # HATI-HATI, doc id saat indexing bisa jadi berbeda dengan doc id
       # yang tertera di qrels
       ranking = []
-      for (score, doc) in BSBI_instance.retrieve_tfidf(query, k = k):
+      for (score, doc) in BSBI_instance.retrieve_bm25(query, k = k):
           did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
           ranking.append(qrels[qid][did])
       rbp_scores.append(rbp(ranking))
