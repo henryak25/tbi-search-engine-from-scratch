@@ -1,17 +1,17 @@
 import re
 from bsbi import BSBIIndex
 from compression import VBEPostings, EliasGammaPostings
-
+import math
 ######## >>>>> sebuah IR metric: RBP p = 0.8
 
 def rbp(ranking, p = 0.8):
-  """ menghitung search effectiveness metric score dengan 
+  """ Calculates search effectiveness metric score with 
       Rank Biased Precision (RBP)
 
       Parameters
       ----------
       ranking: List[int]
-         vektor biner seperti [1, 0, 1, 1, 1, 0]
+         biner vector like [1, 0, 1, 1, 1, 0]
          gold standard relevansi dari dokumen di rank 1, 2, 3, dst.
          Contoh: [1, 0, 1, 1, 1, 0] berarti dokumen di rank-1 relevan,
                  di rank-2 tidak relevan, di rank-3,4,5 relevan, dan
@@ -27,6 +27,50 @@ def rbp(ranking, p = 0.8):
     pos = i - 1
     score += ranking[pos] * (p ** (i - 1))
   return (1 - p) * score
+
+def dcg(ranking):
+    """
+    Menghitung Discounted Cumulative Gain (DCG)
+    """
+    score = 0.0
+    for i, rel in enumerate(ranking):
+        # i dimulai dari 0, sehingga rank = i + 1. 
+        # Sehingga penyebutnya log2(rank + 1) = log2(i + 2)
+        score += rel / math.log2(i + 2)
+    return score
+
+def ndcg(ranking):
+    """
+    Menghitung Normalized Discounted Cumulative Gain (NDCG)
+    dengan membandingkan DCG terhadap Ideal DCG
+    """
+    dcg_val = dcg(ranking)
+    
+    ideal_ranking = sorted(ranking, reverse=True)
+    idcg_val = dcg(ideal_ranking)
+    
+    # Agar tidak division by zero jika tidak ada dokumen relevan
+    if idcg_val == 0.0:
+        return 0.0
+        
+    return dcg_val / idcg_val
+
+def ap(ranking, total_relevant):
+    """
+    Menghitung Average Precision
+    """
+    relevant_docs = 0
+    cumulative_precision = 0.0
+    
+    for i, rel in enumerate(ranking):
+        if rel == 1:
+            relevant_docs += 1
+            cumulative_precision += relevant_docs / (i + 1)
+            
+    if total_relevant == 0:
+        return 0.0
+        
+    return cumulative_precision / total_relevant
 
 
 ######## >>>>> memuat qrels
@@ -64,22 +108,33 @@ def eval(qrels, query_file = "queries.txt", k = 1000):
                           output_dir = 'index')
 
   with open(query_file) as file:
-    rbp_scores = []
-    for qline in file:
-      parts = qline.strip().split()
-      qid = parts[0]
-      query = " ".join(parts[1:])
+        rbp_scores = []
+        dcg_scores = []
+        ndcg_scores = []
+        ap_scores = []
+        
+        for qline in file:
+            parts = qline.strip().split()
+            qid = parts[0]
+            query = " ".join(parts[1:])
+            
+            total_rel_in_qrels = sum(qrels[qid].values())
 
-      # HATI-HATI, doc id saat indexing bisa jadi berbeda dengan doc id
-      # yang tertera di qrels
-      ranking = []
-      for (score, doc) in BSBI_instance.retrieve_bm25(query, k = k):
-          did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
-          ranking.append(qrels[qid][did])
-      rbp_scores.append(rbp(ranking))
+            ranking = []
+            for (score, doc) in BSBI_instance.retrieve_bm25(query, k=k):
+                did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
+                ranking.append(qrels[qid][did])
+                
+            rbp_scores.append(rbp(ranking))
+            dcg_scores.append(dcg(ranking))
+            ndcg_scores.append(ndcg(ranking))
+            ap_scores.append(ap(ranking, total_rel_in_qrels))
 
-  print("Hasil evaluasi TF-IDF terhadap 30 queries")
-  print("RBP score =", sum(rbp_scores) / len(rbp_scores))
+  print("Hasil evaluasi BM25 terhadap 30 queries")
+  print(f"Mean RBP   = {sum(rbp_scores) / len(rbp_scores):.4f}")
+  print(f"Mean DCG   = {sum(dcg_scores) / len(dcg_scores):.4f}")
+  print(f"Mean NDCG  = {sum(ndcg_scores) / len(ndcg_scores):.4f}")
+  print(f"Mean AP (MAP) = {sum(ap_scores) / len(ap_scores):.4f}")
 
 if __name__ == '__main__':
   qrels = load_qrels()
