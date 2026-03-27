@@ -248,7 +248,7 @@ class BSBIIndex:
             for term in terms:
                 if term in merged_index.postings_dict:
                     df = merged_index.postings_dict[term][1]
-                    idf = math.log(N / df)
+                    idf = math.log((N - df + 0.5) / (df + 0.5) + 1)
                     
                     postings, tf_list = merged_index.get_postings_list(term)
                     
@@ -267,7 +267,112 @@ class BSBIIndex:
 
             docs = [(score, self.doc_id_map[doc_id]) for (doc_id, score) in scores.items()]
             return sorted(docs, key=lambda x: x[0], reverse=True)[:k]
-        
+    
+    def retrieve_wand(self, query, k=10, k1=1.625, b=0.75):
+        """
+        Ranked Retrieval with DaaT WAND Top-K using pivot-based skipping.
+        """
+        if len(self.term_id_map) == 0 or len(self.doc_id_map) == 0:
+            self.load()
+
+        terms = [self.term_id_map[word] for word in query.split()
+                if word in self.term_id_map.str_to_id]
+
+        class PostingIterator:
+            def __init__(self, term, postings, tfs, ub, idf):
+                self.term = term
+                self.postings = postings
+                self.tfs = tfs
+                self.ub = ub
+                self.idf = idf
+                self.pos = 0
+                self.n = len(postings)
+                self.current_doc = postings[0] if self.n > 0 else float('inf')
+
+            def next_geq(self, target_doc):
+                while self.pos < self.n and self.postings[self.pos] < target_doc:
+                    self.pos += 1
+                self.current_doc = self.postings[self.pos] if self.pos < self.n else float('inf')
+                return self.current_doc
+
+        with InvertedIndexReader(self.index_name, self.postings_encoding,
+                                directory=self.output_dir) as merged_index:
+            N = len(merged_index.doc_length)
+            avgdl = sum(merged_index.doc_length.values()) / N if N > 0 else 1
+            # use min_doc_len for a tight upper bound
+            min_doc_len = min(merged_index.doc_length.values()) if merged_index.doc_length else 1
+
+            iterators = []
+            for term in terms:
+                if term in merged_index.postings_dict:
+                    df      = merged_index.postings_dict[term][1]
+                    max_tf  = merged_index.postings_dict[term][4]
+                    idf     = math.log((N - df + 0.5) / (df + 0.5) + 1)
+                    ub      = idf * (max_tf * (k1 + 1)) / \
+                                (max_tf + k1 * (1 - b + b * min_doc_len / avgdl))
+                    postings, tf_list = merged_index.get_postings_list(term)
+                    if postings:
+                        iterators.append(PostingIterator(term, postings, tf_list, ub, idf))
+
+            top_k_heap = []
+            theta = 0.0
+
+            while True:
+                # sort only once per loop iteration, but at least
+                # prune exhausted iterators before sorting to keep the list small
+                iterators = [it for it in iterators if it.current_doc != float('inf')]
+                iterators.sort(key=lambda x: x.current_doc)
+
+                if not iterators:
+                    break
+
+                # Find pivot: first iterator where cumulative UB exceeds theta
+                pivot_idx = -1
+                ub_sum = 0.0
+                for i, it in enumerate(iterators):
+                    ub_sum += it.ub
+                    if ub_sum > theta:
+                        pivot_idx = i
+                        break
+
+                if pivot_idx == -1:
+                    break
+
+                pivot_doc = iterators[pivot_idx].current_doc
+
+                if iterators[0].current_doc == pivot_doc:
+                    # Valid candidate: score it exactly
+                    curr_doc = pivot_doc
+                    exact_score = 0.0
+                    doc_len = merged_index.doc_length[curr_doc]
+
+                    for it in iterators:
+                        if it.current_doc == curr_doc:
+                            tf = it.tfs[it.pos]
+                            numerator = tf * (k1 + 1)
+                            denominator = tf + k1 * (1 - b + b * (doc_len / avgdl))
+                            exact_score += it.idf * (numerator / denominator)
+                            # Advance all iterators pointing at curr_doc
+                            it.next_geq(curr_doc + 1)
+
+                    if len(top_k_heap) < k:
+                        heapq.heappush(top_k_heap, (exact_score, curr_doc))
+                        if len(top_k_heap) == k:
+                            theta = top_k_heap[0][0]
+                    elif exact_score > theta:
+                        heapq.heappushpop(top_k_heap, (exact_score, curr_doc))
+                        theta = top_k_heap[0][0]
+
+                else:
+                    # Advance all iterators before pivot that are behind pivot_doc
+                    for i in range(pivot_idx + 1):
+                        if iterators[i].current_doc < pivot_doc:
+                            iterators[i].next_geq(pivot_doc)
+
+        docs = [(score, self.doc_id_map[doc_id]) for score, doc_id in top_k_heap]
+        return sorted(docs, key=lambda x: x[0], reverse=True)
+
+
     def index(self):
         """
         Base indexing code
