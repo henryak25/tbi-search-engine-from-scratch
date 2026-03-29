@@ -2,6 +2,12 @@ import re
 from bsbi import BSBIIndex
 from compression import VBEPostings, EliasGammaPostings
 import math
+
+encoding_name = "elias"  # change to "vbe" to use VBEPostings
+if encoding_name == "vbe":
+  selected_postings = VBEPostings
+else:
+  selected_postings = EliasGammaPostings
 ######## >>>>> sebuah IR metric: RBP p = 0.8
 
 def rbp(ranking, p = 0.8):
@@ -104,7 +110,7 @@ def eval(qrels, query_file = "queries.txt", k = 1000):
     untuk setiap query, kembalikan top-1000 documents
   """
   BSBI_instance = BSBIIndex(data_dir = 'collection', \
-                          postings_encoding = EliasGammaPostings, \
+                          postings_encoding = selected_postings, \
                           output_dir = 'index')
 
   with open(query_file) as file:

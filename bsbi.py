@@ -370,7 +370,7 @@ class BSBIIndex:
                             iterators[i].next_geq(pivot_doc)
 
         docs = [(score, self.doc_id_map[doc_id]) for score, doc_id in top_k_heap]
-        return sorted(docs, key=lambda x: x[0], reverse=True)
+        return sorted(docs, key=lambda x: x[0], reverse=True)[:k]
 
 
     def index(self):
@@ -403,7 +403,13 @@ class BSBIIndex:
 
 if __name__ == "__main__":
 
+    encoding_name = "elias"  # change to "vbe" to use VBEPostings
+    if encoding_name == "vbe":
+        postings_encoding = VBEPostings
+    else:
+        postings_encoding = EliasGammaPostings
+
     BSBI_instance = BSBIIndex(data_dir = 'collection', \
-                              postings_encoding = EliasGammaPostings, \
+                              postings_encoding = postings_encoding, \
                               output_dir = 'index')
-    BSBI_instance.index() # memulai indexing!
+    BSBI_instance.index() # start indexing

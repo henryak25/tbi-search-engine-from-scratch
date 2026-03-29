@@ -2,8 +2,14 @@ import time
 from bsbi import BSBIIndex
 from compression import VBEPostings, EliasGammaPostings 
 
+encoding_name = "elias"  # change to "vbe" to use VBEPostings
+if encoding_name == "vbe":
+    selected_postings = VBEPostings
+else:
+    selected_postings = EliasGammaPostings
+
 BSBI_instance = BSBIIndex(data_dir='collection', 
-                          postings_encoding=EliasGammaPostings, 
+                          postings_encoding=selected_postings, 
                           output_dir='index')
 
 queries = ["alkylated with radioactive iodoacetate", 
