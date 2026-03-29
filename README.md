@@ -3,7 +3,9 @@ This project is an implementation for the Information Retrieval course assignmen
 
 ## Highlights
 - **Blocked Sort-Based Indexing (BSBI)**: Optimizes document collection processing in blocks to ensure system RAM efficiency during indexing.
+- **SPIMI Indexing**: Includes an alternative SPIMI implementation and a built-in runtime comparison against BSBI.
 - **Inverted Index Compression**: Saves disk space using two algorithm options: *Variable Byte Encoding (VBE)* and *Elias-Gamma Encoding*.
+- **Trie-Based Mapping**: `IdMap` supports either Python `dict` (default) or `Trie` backend for string-to-ID mapping experiments.
 - **Search & Ranking Algorithms**:
     - **BM25**: A standard probabilistic model for top-k document retrieval. See implementation notes in [bm25.md](bm25.md).
     - **WAND (Weak AND) Algorithm**: A dynamic optimization for BM25 that reduces query latency when searching for the top-k results by safely skipping non-competitive documents. See implementation notes in [wand.md](wand.md).
@@ -18,11 +20,14 @@ This project is an implementation for the Information Retrieval course assignmen
 - `spimi.py` : SPIMI indexing implementation and SPIMI vs BSBI indexing time comparison script.
 - `compression.py` : Posting list compression algorithms (Standard, VBEPostings, EliasGammaPostings).
 - `index.py` : Helper classes for the functionality and I/O operations of the Inverted Index data structure.
+- `util.py` : Utility data structures and helpers (`IdMap`, optional `Trie`, merge utilities).
 - `search.py` : Query execution module to test and operate the BM25 and WAND retrieval methods, including speedup comparisons.
 - `bm25.md` : Detailed explanation of BM25 implementation in this project.
 - `wand.md` : Detailed explanation of WAND implementation in this project.
 - `evaluation.py` : Script for evaluating search effectiveness against the document collection.
 - `memory_compare_bsbi_spimi.py` : Peak Python memory comparison between BSBI and SPIMI on the same block.
+- `benchmark_trie.py` : Benchmark script comparing Python `dict` vs custom `Trie` for exact and prefix search.
+- `results.md` : Collected sample benchmark and evaluation outputs.
 - `collection/` : Raw dataset directory containing the `.txt` documents to be indexed.
 - `index/` : Output directory for the generated index files produced by `bsbi.py`.
 - `tmp/` : Temporary directory used during indexing for intermediate index files.
@@ -105,3 +110,46 @@ The script reports:
 Interpretation:
 - Ratio `> 1`: SPIMI used less peak Python memory in that experiment.
 - Ratio `~ 1`: memory usage was similar for that block/data distribution.
+
+From the local run: Ratio value is 1.3x
+
+### 5. Benchmark Trie vs Dictionary
+To benchmark exact-match and prefix-search performance:
+
+```bash
+python benchmark_trie.py
+```
+
+Optional arguments:
+```bash
+python benchmark_trie.py --num-words 500000 --prefix-queries 200 --seed 42
+```
+
+What it measures:
+- Insert time (dict vs trie)
+- Exact lookup time (dict vs trie)
+- Prefix search time
+
+Interpretation:
+- Python `dict` is faster for exact key lookup.
+- Trie is better for prefix queries because it does not scan all keys for each prefix.
+
+## Experimental Results
+Sample outputs are documented in [results.md](results.md).
+
+Quick highlights:
+- Trie benchmark:
+    - Dict is faster for exact insert/search.
+    - Trie is much faster for prefix search (`379.66x` vs dict key scan in the sample run).
+- BSBI vs SPIMI memory benchmark:
+    - Peak Python memory ratio (`BSBI / SPIMI`) = `1.30x`.
+    - Indicates lower peak Python memory for SPIMI in that run.
+- Evaluation (`evaluation.py`):
+    - Mean RBP = `0.6349`
+    - Mean DCG = `5.7768`
+    - Mean NDCG = `0.7985`
+    - Mean AP (MAP) = `0.4825`
+- Compression (`compression.py` sample):
+    - StandardPostings: postings `20 bytes`, TF `20 bytes`
+    - VBEPostings: postings `9 bytes`, TF `5 bytes`
+    - EliasGammaPostings: postings `12 bytes`, TF `3 bytes`
