@@ -15,12 +15,14 @@ This project is an implementation for the Information Retrieval course assignmen
 
 ## Project Structure
 - `bsbi.py` : Implementation of the Blocked Sort-Based Indexing algorithm scheme.
+- `spimi.py` : SPIMI indexing implementation and SPIMI vs BSBI indexing time comparison script.
 - `compression.py` : Posting list compression algorithms (Standard, VBEPostings, EliasGammaPostings).
 - `index.py` : Helper classes for the functionality and I/O operations of the Inverted Index data structure.
 - `search.py` : Query execution module to test and operate the BM25 and WAND retrieval methods, including speedup comparisons.
 - `bm25.md` : Detailed explanation of BM25 implementation in this project.
 - `wand.md` : Detailed explanation of WAND implementation in this project.
 - `evaluation.py` : Script for evaluating search effectiveness against the document collection.
+- `memory_compare_bsbi_spimi.py` : Peak Python memory comparison between BSBI and SPIMI on the same block.
 - `collection/` : Raw dataset directory containing the `.txt` documents to be indexed.
 - `index/` : Output directory for the generated index files produced by `bsbi.py`.
 - `tmp/` : Temporary directory used during indexing for intermediate index files.
@@ -55,6 +57,13 @@ Run:
 python bsbi.py
 ```
 
+### 1a. Build Index with SPIMI (Alternative)
+If you want to run SPIMI indexing (instead of BSBI), use:
+
+```bash
+python spimi.py
+```
+
 ### 2. Run Search (BM25 vs WAND)
 After indexing is finished, run the search script to compare:
 - BM25 exhaustive retrieval
@@ -79,4 +88,20 @@ Output will include mean scores across all queries:
 - Mean RBP
 - Mean DCG
 - Mean NDCG
-- Mean AP
+- Mean AP (MAP)
+
+### 4. Compare Peak Memory Usage (BSBI vs SPIMI)
+To compare peak Python memory usage between BSBI and SPIMI on the same block:
+
+```bash
+python memory_compare_bsbi_spimi.py
+```
+
+The script reports:
+- Elapsed time for each run
+- Peak Python memory for each run (`tracemalloc`)
+- Peak memory ratio (`BSBI / SPIMI`)
+
+Interpretation:
+- Ratio `> 1`: SPIMI used less peak Python memory in that experiment.
+- Ratio `~ 1`: memory usage was similar for that block/data distribution.
