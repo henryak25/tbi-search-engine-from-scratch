@@ -36,6 +36,19 @@ This project is an implementation for the Information Retrieval course assignmen
 - `queries.txt` : 30 test queries used for evaluation.
 - `qrels.txt`   : Relevance judgments for the test queries.
 
+## Requirements
+- `tqdm`
+- `numpy`
+- `scipy`
+- `scikit-learn`
+- `faiss-cpu`
+
+Install all dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
 ## How to Run
 
 ### 0. Compare Compression Methods
