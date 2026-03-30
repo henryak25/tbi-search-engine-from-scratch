@@ -3,6 +3,9 @@ from bsbi import BSBIIndex
 from compression import VBEPostings, EliasGammaPostings
 import math
 
+import os
+from lsi_faiss import LSIFAISSIndex
+
 encoding_name = "elias"  # change to "vbe" to use VBEPostings
 if encoding_name == "vbe":
   selected_postings = VBEPostings
@@ -101,51 +104,91 @@ def load_qrels(qrel_file = "qrels.txt", max_q_id = 30, max_doc_id = 1033):
       qrels[qid][did] = 1
   return qrels
 
+def extract_doc_id(doc_path):
+    """ Ekstrak ID dokumen """
+    basename = os.path.basename(doc_path)
+    match = re.search(r'(\d+)', basename)
+    if match:
+        return int(match.group(1))
+    return -1
+
 ######## >>>>> EVALUASI !
+def eval_comparison(qrels, query_file="queries.txt", k=1000):
+    """ 
+    Mengevaluasi dan membandingkan BM25 vs LSI (FAISS)
+    """
+    print("Inisialisasi BSBI Index")
+    bsbi_instance = BSBIIndex(data_dir='collection', 
+                              postings_encoding=selected_postings, 
+                              output_dir='index')
+    
+    print("Inisialisasi LSI-FAISS Index")
+    lsi_instance = LSIFAISSIndex(bsbi_instance, latent_dim=100)
+    try:
+        lsi_instance.load()
+        print("LSI-FAISS model loaded from disk")
+    except FileNotFoundError:
+        print("LSI-FAISS model not found, building a new one...")
+        lsi_instance.build()
 
-def eval(qrels, query_file = "queries.txt", k = 1000):
-  """ 
-    loop ke semua 30 query, hitung score di setiap query,
-    lalu hitung MEAN SCORE over those 30 queries.
-    untuk setiap query, kembalikan top-1000 documents
-  """
-  BSBI_instance = BSBIIndex(data_dir = 'collection', \
-                          postings_encoding = selected_postings, \
-                          output_dir = 'index')
+    bm25_rbp, bm25_dcg, bm25_ndcg, bm25_ap  = [], [], [], []
+    lsi_rbp, lsi_dcg, lsi_ndcg, lsi_ap = [], [], [], []
 
-  with open(query_file) as file:
-        rbp_scores = []
-        dcg_scores = []
-        ndcg_scores = []
-        ap_scores = []
-        
+    print(f"\nMulai evaluasi komparasi {len(qrels)} queries")
+    with open(query_file) as file:
         for qline in file:
             parts = qline.strip().split()
             qid = parts[0]
             query = " ".join(parts[1:])
             
-            total_rel_in_qrels = sum(qrels[qid].values())
-
-            ranking = []
-            for (score, doc) in BSBI_instance.retrieve_bm25(query, k=k):
-                did = int(re.search(r'\/.*\/.*\/(.*)\.txt', doc).group(1))
-                ranking.append(qrels[qid][did])
+            if qid not in qrels:
+                continue
                 
-            rbp_scores.append(rbp(ranking))
-            dcg_scores.append(dcg(ranking))
-            ndcg_scores.append(ndcg(ranking))
-            ap_scores.append(ap(ranking, total_rel_in_qrels))
+            total_rel_in_qrels = sum(qrels[qid].values())
+            
+            # --- BM25 ---
+            bm25_results = bsbi_instance.retrieve_bm25(query, k=k)
+            
+            ranking_bm25 = []
+            for (score, doc) in bm25_results:
+                did = extract_doc_id(doc)
+                ranking_bm25.append(qrels[qid].get(did, 0))
+                    
+            bm25_rbp.append(rbp(ranking_bm25))
+            bm25_dcg.append(dcg(ranking_bm25))
+            bm25_ndcg.append(ndcg(ranking_bm25))
+            bm25_ap.append(ap(ranking_bm25, total_rel_in_qrels))
 
-  print("Hasil evaluasi BM25 terhadap 30 queries")
-  print(f"Mean RBP   = {sum(rbp_scores) / len(rbp_scores):.4f}")
-  print(f"Mean DCG   = {sum(dcg_scores) / len(dcg_scores):.4f}")
-  print(f"Mean NDCG  = {sum(ndcg_scores) / len(ndcg_scores):.4f}")
-  print(f"Mean AP (MAP) = {sum(ap_scores) / len(ap_scores):.4f}")
+            # --- LSI FAISS ---
+            lsi_results = lsi_instance.retrieve(query, k=k)
+            
+            ranking_lsi = []
+            for (score, doc) in lsi_results:
+                did = extract_doc_id(doc)
+                ranking_lsi.append(qrels[qid].get(did, 0))
+                    
+            lsi_rbp.append(rbp(ranking_lsi))
+            lsi_dcg.append(dcg(ranking_lsi))
+            lsi_ndcg.append(ndcg(ranking_lsi))
+            lsi_ap.append(ap(ranking_lsi, total_rel_in_qrels))
+
+    n = len(bm25_rbp)
+    print("\n" + "=" * 50)
+    print(f"Hasil Evaluasi ({n} Queries)")
+    print("=" * 50)
+    print(f"{'Metrik':<15} | {'BM25':<12} | {'LSI (FAISS)':<12}")
+    print("-" * 50)
+    print(f"{'Mean RBP':<15} | {sum(bm25_rbp)/n:<12.4f} | {sum(lsi_rbp)/n:<12.4f}")
+    print(f"{'Mean DCG':<15} | {sum(bm25_dcg)/n:<12.4f} | {sum(lsi_dcg)/n:<12.4f}")
+    print(f"{'Mean NDCG':<15} | {sum(bm25_ndcg)/n:<12.4f} | {sum(lsi_ndcg)/n:<12.4f}")
+    print(f"{'MAP (Mean AP)':<15} | {sum(bm25_ap)/n:<12.4f} | {sum(lsi_ap)/n:<12.4f}")
+    print("-" * 50)
+    print("=" * 50)
 
 if __name__ == '__main__':
-  qrels = load_qrels()
+    qrels = load_qrels()
 
-  assert qrels["Q1"][166] == 1, "qrels salah"
-  assert qrels["Q1"][300] == 0, "qrels salah"
+    assert qrels["Q1"][166] == 1, "qrels salah"
+    assert qrels["Q1"][300] == 0, "qrels salah"
 
-  eval(qrels)
+    eval_comparison(qrels)
