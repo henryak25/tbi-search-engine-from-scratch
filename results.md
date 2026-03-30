@@ -23,9 +23,10 @@ This file stores sample benchmark/evaluation outputs captured from local runs.
 - Dict insert speedup vs trie: `20.61x`
 - Dict exact-search speedup vs trie: `7.49x`
 
-### Interpretation
-- For exact lookup and insert, Python dict is substantially faster.
-- For prefix queries, Trie is significantly faster because dictionary prefix search scans all keys.
+### Interpretation For the Speedups
+- **Exact Lookup & Insert:** Python's built-in `dict` is a heavily C-optimized hash map yielding near $O(1)$ performance. The custom `Trie` incurs pure-Python overhead due to node object creation and character-by-character traversal.
+- **Prefix Queries:** A `Trie` efficiently traverses only the relevant prefix branch ($O(L)$ time). Conversely, an unordered `dict` forces a highly inefficient full linear scan ($O(N)$) across all keys.
+- **Trie Primary Use Cases:** Ideal for real-time autocomplete/typeahead, wildcard search queries (e.g., `comput*`).
 
 ## 2. BSBI vs SPIMI Memory Comparison (`memory_compare_bsbi_spimi.py`)
 
@@ -45,11 +46,18 @@ This file stores sample benchmark/evaluation outputs captured from local runs.
 
 ## 3. Evaluation Results (`evaluation.py`)
 
-### Output
-- Mean RBP: `0.6349`
-- Mean DCG: `5.7768`
-- Mean NDCG: `0.7985`
-- Mean AP (MAP): `0.4825`
+### Output (BM25 vs LSI-FAISS)
+
+| Metric | BM25 | LSI (FAISS) |
+|---|---:|---:|
+| Mean RBP | `0.6349` | `0.7413` |
+| Mean DCG | `5.7768` | `6.6411` |
+| Mean NDCG | `0.7985` | `0.8601` |
+| MAP (Mean AP) | `0.4825` | `0.6342` |
+
+### Interpretation
+- In this run, LSI (FAISS) outperformed BM25 on all reported effectiveness metrics.
+- Average query latency was also slightly lower for LSI (FAISS).
 
 ## 4. Compression Results (`compression.py`)
 

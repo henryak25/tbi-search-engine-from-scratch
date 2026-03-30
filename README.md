@@ -6,6 +6,7 @@ This project is an implementation for the Information Retrieval course assignmen
 - **SPIMI Indexing**: Includes an alternative SPIMI implementation and a built-in runtime comparison against BSBI.
 - **Inverted Index Compression**: Saves disk space using two algorithm options: *Variable Byte Encoding (VBE)* and *Elias-Gamma Encoding*.
 - **Trie-Based Mapping**: `IdMap` supports either Python `dict` (default) or `Trie` backend for string-to-ID mapping experiments.
+- **Latent Semantic Indexing (LSI) with FAISS**: Implements an advanced Vector Search engine to capture underlying semantic meanings and overcome exact-match limitations.
 - **Search & Ranking Algorithms**:
     - **BM25**: A standard probabilistic model for top-k document retrieval. See implementation notes in [bm25.md](bm25.md).
     - **WAND (Weak AND) Algorithm**: A dynamic optimization for BM25 that reduces query latency when searching for the top-k results by safely skipping non-competitive documents. See implementation notes in [wand.md](wand.md).
@@ -22,6 +23,7 @@ This project is an implementation for the Information Retrieval course assignmen
 - `index.py` : Helper classes for the functionality and I/O operations of the Inverted Index data structure.
 - `util.py` : Utility data structures and helpers (`IdMap`, optional `Trie`, merge utilities).
 - `search.py` : Query execution module to test and operate the BM25 and WAND retrieval methods, including speedup comparisons.
+- `lsi_faiss.py` : LSI + FAISS semantic retrieval index.
 - `bm25.md` : Detailed explanation of BM25 implementation in this project.
 - `wand.md` : Detailed explanation of WAND implementation in this project.
 - `evaluation.py` : Script for evaluating search effectiveness against the document collection.
@@ -89,11 +91,11 @@ Run:
 python evaluation.py
 ```
 
-Output will include mean scores across all queries:
+Output includes comparative metrics for BM25 vs LSI (FAISS):
 - Mean RBP
 - Mean DCG
 - Mean NDCG
-- Mean AP (MAP)
+- MAP (Mean AP)
 
 ### 4. Compare Peak Memory Usage (BSBI vs SPIMI)
 To compare peak Python memory usage between BSBI and SPIMI on the same block:
@@ -145,10 +147,8 @@ Quick highlights:
     - Peak Python memory ratio (`BSBI / SPIMI`) = `1.30x`.
     - Indicates lower peak Python memory for SPIMI in that run.
 - Evaluation (`evaluation.py`):
-    - Mean RBP = `0.6349`
-    - Mean DCG = `5.7768`
-    - Mean NDCG = `0.7985`
-    - Mean AP (MAP) = `0.4825`
+    - BM25: Mean RBP=`0.6349`, Mean DCG=`5.7768`, Mean NDCG=`0.7985`, MAP=`0.4825`
+    - LSI (FAISS): Mean RBP=`0.7413`, Mean DCG=`6.6411`, Mean NDCG=`0.8601`, MAP=`0.6342`
 - Compression (`compression.py` sample):
     - StandardPostings: postings `20 bytes`, TF `20 bytes`
     - VBEPostings: postings `9 bytes`, TF `5 bytes`
