@@ -383,6 +383,9 @@ class BSBIIndex:
         untuk parsing dokumen dan memanggil invert_write yang melakukan inversion
         di setiap block dan menyimpannya ke index yang baru.
         """
+        # Ensure output directory exists before writing any index files.
+        os.makedirs(self.output_dir, exist_ok=True)
+
         # loop untuk setiap sub-directory di dalam folder collection (setiap block)
         for block_dir_relative in tqdm(sorted(next(os.walk(self.data_dir))[1])):
             td_pairs = self.parse_block(block_dir_relative)

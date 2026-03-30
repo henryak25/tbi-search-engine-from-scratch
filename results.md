@@ -57,7 +57,6 @@ This file stores sample benchmark/evaluation outputs captured from local runs.
 
 ### Interpretation
 - In this run, LSI (FAISS) outperformed BM25 on all reported effectiveness metrics.
-- Average query latency was also slightly lower for LSI (FAISS).
 
 ## 4. Compression Results (`compression.py`)
 

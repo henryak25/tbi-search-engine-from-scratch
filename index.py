@@ -160,6 +160,7 @@ class InvertedIndexWriter(InvertedIndex):
     efisien Inverted Index yang disimpan di sebuah file.
     """
     def __enter__(self):
+        os.makedirs(os.path.dirname(self.index_file_path) or '.', exist_ok=True)
         self.index_file = open(self.index_file_path, 'wb+')
         return self
 
@@ -232,11 +233,13 @@ if __name__ == "__main__":
         assert index.postings_dict == {1: (0, \
                                            5, \
                                            len(VBEPostings.encode([2,3,4,8,10])), \
-                                           len(VBEPostings.encode_tf([2,4,2,3,30]))),
+                                           len(VBEPostings.encode_tf([2,4,2,3,30])), \
+                                           30),
                                        2: (len(VBEPostings.encode([2,3,4,8,10])) + len(VBEPostings.encode_tf([2,4,2,3,30])), \
                                            3, \
                                            len(VBEPostings.encode([3,4,5])), \
-                                           len(VBEPostings.encode_tf([34,23,56])))}, "postings dictionary salah"
+                                           len(VBEPostings.encode_tf([34,23,56])), \
+                                           56)}, "postings dictionary salah"
         
         index.index_file.seek(index.postings_dict[2][0])
         assert VBEPostings.decode(index.index_file.read(len(VBEPostings.encode([3,4,5])))) == [3,4,5], "terdapat kesalahan"

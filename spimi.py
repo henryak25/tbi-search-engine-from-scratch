@@ -92,6 +92,8 @@ class SPIMIIndex(BSBIIndex):
         directly to build_block_index — no intermediate td_pairs list is created.
         After all blocks are processed, delegates save() and merge() to BSBIIndex.
         """
+        os.makedirs(self.output_dir, exist_ok=True)
+
         for block_dir_relative in tqdm(
             sorted(next(os.walk(self.data_dir))[1]),
             desc="SPIMI Indexing"
